@@ -1,0 +1,44 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: di-mongodb
+    restart: unless-stopped
+    ports: ["27017:27017"]
+    volumes: ["mongo_data:/data/db"]
+
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: di-chroma
+    restart: unless-stopped
+    ports: ["8001:8000"]
+    volumes: ["chroma_data:/chroma/chroma"]
+    environment:
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: /chroma/chroma
+
+  ai-service:
+    build: ./ai-service
+    container_name: di-ai-service
+    restart: unless-stopped
+    env_file: ./ai-service/.env
+    environment:
+      CHROMA_HOST: chroma
+      CHROMA_PORT: 8000
+    ports: ["8000:8000"]
+    depends_on: [chroma]
+
+  backend:
+    build: ./backend
+    container_name: di-backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/document_intelligence
+      AI_SERVICE_URL: http://ai-service:8000
+      CLIENT_URL: http://localhost:5173
+    ports: ["5000:5000"]
+    depends_on: [mongodb, ai-service]
+
+volumes:
+  mongo_data:
+  chroma_data:
